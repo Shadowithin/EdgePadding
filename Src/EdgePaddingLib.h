@@ -15,7 +15,7 @@ namespace EdgePadding {
 
     __device__ bool isZeroPixel(uchar4 p);
 
-    __global__ void fillZeroPixelsKernel(const uchar4* input, uchar4* output, int width, int height, int* stillHasZero);
+    __global__ void fillZeroPixelsKernel(const uchar4* input, const uint8_t* input_mask, uchar4* output, uint8_t* output_mask, int width, int height, int* stillHasZero);
 
-    __host__   int fillZeroPixels(const uchar4* input,  uchar4* output, int wiidth, int height);
+    __host__   int fillZeroPixels(const uchar4* input, const uint8_t* mask, uchar4* output, int wiidth, int height);
 }

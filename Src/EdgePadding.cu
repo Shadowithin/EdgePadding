@@ -48,7 +48,7 @@ int main() {
         }
     }
 
-    EdgePadding::fillZeroPixels(img.ptr<uchar4>(), img.ptr<uchar4>(), img.cols, img.rows);
+    EdgePadding::fillZeroPixels(img.ptr<uchar4>(), mask.ptr<uint8_t>(), img.ptr<uchar4>(), img.cols, img.rows);
 
     cv::Mat showImg;
     cv::resize(img, showImg, cv::Size(1024, 1024));

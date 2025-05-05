@@ -6,7 +6,7 @@ namespace EdgePadding {
         return (p.x == 0 && p.y == 0 && p.z == 0 && p.w == 0);
     }
 
-    __global__ void fillZeroPixelsKernel(const uchar4* input, uchar4* output, int width, int height, int* stillHasZero) {
+    __global__ void fillZeroPixelsKernel(const uchar4* input, const uint8_t* input_mask, uchar4* output, uint8_t* output_mask, int width, int height, int* stillHasZero) {
         int x = blockIdx.x * blockDim.x + threadIdx.x;
         int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -14,9 +14,11 @@ namespace EdgePadding {
 
         int idx = y * width + x;
         uchar4 p = input[idx];
+        uint8_t m = input_mask[idx];
 
-        if (!isZeroPixel(p)) {
+        if (m > 0) {
             output[idx] = p;
+            output_mask[idx] = m;
             return;
         }
 
@@ -32,7 +34,8 @@ namespace EdgePadding {
                 if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
 
                 uchar4 neighbor = input[ny * width + nx];
-                if (!isZeroPixel(neighbor)) {
+                uint8_t neighbor_mask = input_mask[ny * width + nx];
+                if (neighbor_mask > 0) {
                     sumX += neighbor.x;
                     sumY += neighbor.y;
                     sumZ += neighbor.z;
@@ -47,31 +50,39 @@ namespace EdgePadding {
             output[idx].y = sumY / count;
             output[idx].z = sumZ / count;
             output[idx].w = sumW / count;
+            output_mask[idx] = 255;
         }
         else {
             output[idx] = p;
+            output_mask[idx] = m;
             atomicAdd(stillHasZero, 1);
         }
     }
 
-    __host__ int fillZeroPixels(const uchar4* input, uchar4* output, int width, int height) {
+    __host__ int fillZeroPixels(const uchar4* input, const uint8_t* input_mask, uchar4* output, int width, int height) {
 
         int zeroCount = INT_MAX;
         int iter = 0;
         int maxIter = width + height;
 
         size_t imageSize = width * height * sizeof(uchar4);
+        size_t maskSize = width * height * sizeof(uint8_t);
 
         uchar4* devImgA;
         uchar4* devImgB;
+        uint8_t* devMaskA;
+        uint8_t* devMaskB;
         int* devZeroCount;
 
         cudaMalloc(&devImgA, imageSize);
         cudaMalloc(&devImgB, imageSize);
+        cudaMalloc(&devMaskA, maskSize);
+        cudaMalloc(&devMaskB, maskSize);
         cudaMalloc(&devZeroCount, sizeof(int));
 
         // 上传图像到 CUDA
         cudaMemcpy(devImgA, input, imageSize, cudaMemcpyHostToDevice);
+        cudaMemcpy(devMaskA, input_mask, maskSize, cudaMemcpyHostToDevice);
 
         dim3 block(16, 16);
         dim3 grid((width + block.x - 1) / block.x, (height + block.y - 1) / block.y);
@@ -83,13 +94,14 @@ namespace EdgePadding {
 
             cudaMemcpy(devZeroCount, &zeroCount, sizeof(int), cudaMemcpyHostToDevice);
 
-            EdgePadding::fillZeroPixelsKernel << <grid, block >> > (devImgA, devImgB, width, height, devZeroCount);
+            EdgePadding::fillZeroPixelsKernel << <grid, block >> > (devImgA, devMaskA, devImgB, devMaskB, width, height, devZeroCount);
             cudaDeviceSynchronize();
 
             cudaMemcpy(&zeroCount, devZeroCount, sizeof(int), cudaMemcpyDeviceToHost);
             //std::cout << "Iteration " << ++iter << ": remaining zero pixels = " << zeroCount << std::endl;
 
             std::swap(devImgA, devImgB);
+            std::swap(devMaskA, devMaskB);
 
             iter = i + 1;
         }
@@ -103,6 +115,8 @@ namespace EdgePadding {
 
         cudaFree(devImgA);
         cudaFree(devImgB);
+        cudaFree(devMaskA);
+        cudaFree(devMaskB);
         cudaFree(devZeroCount);
 
         return 0;
