@@ -1,9 +1,4 @@
-﻿#ifndef __CUDACC__
-#define __CUDACC__
-#endif
-
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
+#include "EdgePaddingLib.h"
 
 #include <opencv2/opencv.hpp>
 
@@ -11,111 +6,55 @@
 #include <vector>
 #include <chrono>
 
-__device__ bool isZeroPixel(uchar4 p) {
-    return (p.x == 0 && p.y == 0 && p.z == 0 && p.w == 0);
-}
+const int WIDTH = 2048;
+const int HEIGHT = 2048;
 
-__global__ void fillZeroPixelsKernel(const uchar4* input, uchar4* output, int width, int height, int* stillHasZero) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    
-    if (x >= width || y >= height) return;
+int main() {
 
-    int idx = y * width + x;
-    uchar4 p = input[idx];
-
-    if (!isZeroPixel(p)) {
-        output[idx] = p;
-        return;
+    std::string filename = R"(D:\Assets\EdgePadding\pve01_xht_chexiang01_01_d_2.png)";  // 支持 PNG、JPG 等
+    cv::Mat img = cv::imread(filename, cv::IMREAD_UNCHANGED);
+    if (img.empty()) {
+        std::cerr << "Failed to load image: " << filename << std::endl;
+        return -1;
     }
 
-    int sumX = 0, sumY = 0, sumZ = 0, sumW = 0;
-    int count = 0;
+    cv::resize(img, img, cv::Size(WIDTH, HEIGHT));
 
-    for (int dy = -1; dy <= 1; ++dy) {
-        for (int dx = -1; dx <= 1; ++dx) {
-            if (dx == 0 && dy == 0) continue;
-            if (dx != 0 && dy != 0) continue;
-            int nx = x + dx;
-            int ny = y + dy;
-            if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+    // 确保为 4 通道图像
+    if (img.channels() == 3) {
+        cv::cvtColor(img, img, cv::COLOR_BGR2BGRA);
+    }
+    // 1. 创建2048x2048的mask图像（单通道）
+    cv::Mat mask = cv::Mat::zeros(img.size(), CV_8UC1);
 
-            uchar4 neighbor = input[ny * width + nx];
-            if (!isZeroPixel(neighbor)) {
-                sumX += neighbor.x;
-                sumY += neighbor.y;
-                sumZ += neighbor.z;
-                sumW += neighbor.w;
-                count++;
+    // 2. 定义三角形的三个点
+    std::vector<cv::Point> triangle = {
+        cv::Point(512, 512),
+        cv::Point(1536, 512),
+        cv::Point(1024, 1536)
+    };
+
+    // 3. 用fillConvexPoly填充mask上的三角形
+    cv::fillConvexPoly(mask, triangle, cv::Scalar(255));
+
+    //mask.at<uchar>(728, 0) = uchar(255);
+
+    // 5. 使用mask对image做掩码操作，将三角形外区域置零
+    for (int y = 0; y < img.rows; y++) {
+        for (int x = 0; x < img.cols; x++) {
+            if (mask.at<uchar>(y, x) == uchar(0)) {
+                img.at<cv::Vec4b>(y, x) = cv::Vec4b(0, 0, 0, 0); // 全部通道置零
             }
         }
     }
 
-    if (count > 0) {
-        output[idx].x = sumX / count;
-        output[idx].y = sumY / count;
-        output[idx].z = sumZ / count;
-        output[idx].w = sumW / count;
-    }
-    else {
-        output[idx] = p;
-        atomicAdd(stillHasZero, 1);
-    }
-}
+    EdgePadding::fillZeroPixels(img.ptr<uchar4>(), img.ptr<uchar4>(), img.cols, img.rows);
 
-int fillZeroPixels(cv::Mat img) {
-
-    int width = img.cols;
-    int height = img.rows;
-
-    int zeroCount = INT_MAX;
-    int iter = 0;
-
-    size_t imageSize = width * height * sizeof(uchar4);
-
-    uchar4* devImgA;
-    uchar4* devImgB;
-    int* devZeroCount;
-
-    cudaMalloc(&devImgA, imageSize);
-    cudaMalloc(&devImgB, imageSize);
-    cudaMalloc(&devZeroCount, sizeof(int));
-
-    // 上传图像到 CUDA
-    cudaMemcpy(devImgA, img.ptr(), imageSize, cudaMemcpyHostToDevice);
-
-
-    dim3 block(16, 16);
-    dim3 grid((width + block.x - 1) / block.x, (height + block.y - 1) / block.y);
-
-    auto start = std::chrono::system_clock::now();
-    for (int i = 0; i < 4096 && zeroCount > 0; i++)
-    {
-        zeroCount = 0;
-
-        cudaMemcpy(devZeroCount, &zeroCount, sizeof(int), cudaMemcpyHostToDevice);
-
-        fillZeroPixelsKernel << <grid, block >> > (devImgA, devImgB, width, height, devZeroCount);
-        cudaDeviceSynchronize();
-
-        cudaMemcpy(&zeroCount, devZeroCount, sizeof(int), cudaMemcpyDeviceToHost);
-        //std::cout << "Iteration " << ++iter << ": remaining zero pixels = " << zeroCount << std::endl;
-
-        std::swap(devImgA, devImgB);
-
-        iter = i + 1;
-    }
-
-    auto end = std::chrono::system_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    std::cout << iter << " , " << duration.count() << std::endl;
-
-    // 拷回主机查看结果（可选）
-    cudaMemcpy(img.ptr(), devImgA, imageSize, cudaMemcpyDeviceToHost);
-
-    cudaFree(devImgA);
-    cudaFree(devImgB);
-    cudaFree(devZeroCount);
+    cv::Mat showImg;
+    cv::resize(img, showImg, cv::Size(1024, 1024));
+    cv::imshow("Fixed Image", showImg);
+    //cv::imwrite("fixed_output.png", img);
+    cv::waitKey(0);
 
     return 0;
 }
