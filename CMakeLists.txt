@@ -29,7 +29,9 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
 # 查找 OpenCV
 find_package(OpenCV REQUIRED)
 
-add_library(CuEdgePadding STATIC
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+add_library(EdgePaddingLib STATIC
     src/EdgePaddingLib.h
     src/EdgePaddingLib.cu)
 
@@ -37,9 +39,28 @@ add_library(CuEdgePadding STATIC
 # target_link_libraries(CuEdgePadding PUBLIC ${OpenCV_LIBS})
 
 # 添加可执行文件（支持 .cu）
-add_executable(EdgePadding
+add_executable(EdgePaddingTest
     src/EdgePadding.cpp
     src/EdgePadding.cu)
 
 # 链接 OpenCV 库
-target_link_libraries(EdgePadding PUBLIC CuEdgePadding ${OpenCV_LIBS})
+target_link_libraries(EdgePaddingTest PUBLIC EdgePaddingLib ${OpenCV_LIBS})
+
+option(PYBIND11_FINDPYTHON ON)
+add_subdirectory(3rdParty/pybind11)
+pybind11_add_module(PyEdgePadding SHARED binding/PyEdgePadding.cpp binding/PyEdgePadding.cu)
+
+# target_include_directories(PyEdgePadding PUBLIC Src)
+target_link_libraries(PyEdgePadding PUBLIC EdgePaddingLib ${OpenCV_LIBS})
+
+function(config_target_output target_name)
+    set_target_properties(${target_name} PROPERTIES 
+        LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin
+        ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin
+    )
+endfunction()
+
+config_target_output(EdgePaddingLib)
+config_target_output(EdgePaddingTest)
+config_target_output(PyEdgePadding)

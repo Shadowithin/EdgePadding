@@ -110,7 +110,7 @@ namespace EdgePadding {
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         std::cout << iter << " , " << duration.count() << std::endl;
 
-        // 拷回主机查看结果（可选）
+        // 拷回主机查看结果
         cudaMemcpy(output, devImgA, imageSize, cudaMemcpyDeviceToHost);
 
         cudaFree(devImgA);
