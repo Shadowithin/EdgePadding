@@ -20,7 +20,7 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Wno-deprecated-gpu-targets")
 
-option(ENABLE_CUDA_DEBUG "ENABLE_CUDA_DEBUG" ON)
+option(ENABLE_CUDA_DEBUG "ENABLE_CUDA_DEBUG" OFF)
 if(${ENABLE_CUDA_DEBUG})
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G")        # enable cuda-gdb (may significantly affect performance on some targets)
 else()
@@ -58,7 +58,6 @@ target_link_libraries(PyEdgePadding PUBLIC EdgePaddingLib)
 
 # config_target_output(EdgePaddingLib)
 # config_target_output(PyEdgePadding)
-
 
 option(BUILD_TEST "BUILD_TEST" ON)
 if(${BUILD_TEST})

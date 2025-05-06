@@ -126,7 +126,7 @@ namespace EdgePadding {
             cudaDeviceSynchronize();
         }
 
-        //auto start = std::chrono::system_clock::now();
+        auto start = std::chrono::system_clock::now();
 
         for (int i = 0; i < maxIter && zeroCount > 0; i++)
         {
@@ -135,7 +135,7 @@ namespace EdgePadding {
             CUDACHECK(cudaMemcpy(devZeroCount, &zeroCount, sizeof(int), cudaMemcpyHostToDevice));
 
             FillZeroPixelKernel << <grid, block >> > (devImgA, devMaskA, devImgB, devMaskB, width, height, devZeroCount);
-            CUDACHECK(cudaPeekAtLastError());
+            //CUDACHECK(cudaPeekAtLastError());
             cudaDeviceSynchronize();
 
             CUDACHECK(cudaMemcpy(&zeroCount, devZeroCount, sizeof(int), cudaMemcpyDeviceToHost));
@@ -147,12 +147,12 @@ namespace EdgePadding {
             iter = i + 1;
         }
 
-        //auto end = std::chrono::system_clock::now();
-        //auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        //std::cout << iter << " , " << duration.count() << std::endl;
+        auto end = std::chrono::system_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        std::cout << "Step: " << iter << " , Time: " << duration.count() << " ms" << std::endl;
 
         // 拷回主机查看结果
-        cudaMemcpy(output, devImgA, imageSize, cudaMemcpyDeviceToHost);
+        CUDACHECK(cudaMemcpy(output, devImgA, imageSize, cudaMemcpyDeviceToHost));
 
         CUDACHECK(cudaFree(devImgA));
         CUDACHECK(cudaFree(devImgB));
