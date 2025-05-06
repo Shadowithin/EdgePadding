@@ -6,19 +6,13 @@
 #include <vector>
 #include <chrono>
 
-const int WIDTH = 2048;
-const int HEIGHT = 2048;
-
-int main() {
-
-    std::string filename = R"(D:\Assets\EdgePadding\pve01_xht_chexiang01_01_d_2.png)";  // 支持 PNG、JPG 等
-    cv::Mat img = cv::imread(filename, cv::IMREAD_UNCHANGED);
+int test_make_mask(std::string input_filename, std::string save_filename) {
+        
+    cv::Mat img = cv::imread(input_filename, cv::IMREAD_UNCHANGED);
     if (img.empty()) {
-        std::cerr << "Failed to load image: " << filename << std::endl;
+        std::cerr << "Failed to load image: " << input_filename << std::endl;
         return -1;
     }
-
-    cv::resize(img, img, cv::Size(WIDTH, HEIGHT));
 
     // 确保为 4 通道图像
     if (img.channels() == 3) {
@@ -48,13 +42,21 @@ int main() {
         }
     }
 
-    EdgePadding::fillZeroPixels(img.ptr<uchar4>(), mask.ptr<uint8_t>(), img.ptr<uchar4>(), img.cols, img.rows);
+    EdgePadding::FillZeroPixels(img.ptr<uchar4>(), img.ptr<uchar4>(), img.cols, img.rows, mask.ptr<uint8_t>());
 
     cv::Mat showImg;
     cv::resize(img, showImg, cv::Size(1024, 1024));
     cv::imshow("Fixed Image", showImg);
-    //cv::imwrite("fixed_output.png", img);
     cv::waitKey(0);
+
+    cv::imwrite(save_filename, img);
+
+    return 0;
+}
+
+int main() {
+
+    std::string input_filename = R"(D:\Assets\EdgePadding\pve01_xht_chexiang01_01_d_2.png)";  // 支持 PNG、JPG 等
 
     return 0;
 }
