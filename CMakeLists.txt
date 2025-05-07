@@ -30,7 +30,7 @@ endif()
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --extended-lambda")
 
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/edge_padding/src)
 
 function(config_target_output target_name)
     set_target_properties(${target_name} PROPERTIES 
@@ -41,17 +41,17 @@ function(config_target_output target_name)
 endfunction()
 
 add_library(EdgePaddingLib STATIC
-    src/EdgePaddingLib.h
-    src/EdgePaddingLib.cu
-    src/EdgePaddingLib.cpp)
+    edge_padding/src/EdgePaddingLib.h
+    edge_padding/src/EdgePaddingLib.cu
+    edge_padding/src/EdgePaddingLib.cpp)
 
 # target_include_directories(EdgePadding PUBLIC ${OpenCV_INCLUDE_DIRS})
 # target_link_libraries(CuEdgePadding PUBLIC ${OpenCV_LIBS})
 
 add_subdirectory(3rdParty/pybind11)
 pybind11_add_module(PyEdgePadding SHARED 
-    binding/PyEdgePadding.cpp 
-    binding/PyEdgePadding.cu)
+    edge_padding/binding/PyEdgePadding.cpp 
+    edge_padding/binding/PyEdgePadding.cu)
 
 # target_include_directories(PyEdgePadding PUBLIC Src)
 target_link_libraries(PyEdgePadding PUBLIC EdgePaddingLib)
@@ -66,8 +66,8 @@ if(${BUILD_TEST})
 
     # 添加可执行文件（支持 .cu）
     add_executable(EdgePaddingTest
-        src/EdgePaddingTest.cpp
-        src/EdgePaddingTest.cu)
+        edge_padding/src/EdgePaddingTest.cpp
+        edge_padding/src/EdgePaddingTest.cu)
 
     # 链接 OpenCV 库
     target_link_libraries(EdgePaddingTest PUBLIC EdgePaddingLib ${OpenCV_LIBS})
@@ -77,5 +77,5 @@ endif()
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
 install(TARGETS PyEdgePadding
     CONFIGURATIONS Release
-    RUNTIME DESTINATION edge_padding
+    RUNTIME DESTINATION edge_padding/lib
 )
