@@ -135,7 +135,7 @@ namespace EdgePadding {
             CUDACHECK(cudaMemcpy(devZeroCount, &zeroCount, sizeof(int), cudaMemcpyHostToDevice));
 
             FillZeroPixelKernel << <grid, block >> > (devImgA, devMaskA, devImgB, devMaskB, width, height, devZeroCount);
-            //CUDACHECK(cudaPeekAtLastError());
+            CUDACHECK(cudaPeekAtLastError());
             cudaDeviceSynchronize();
 
             CUDACHECK(cudaMemcpy(&zeroCount, devZeroCount, sizeof(int), cudaMemcpyDeviceToHost));

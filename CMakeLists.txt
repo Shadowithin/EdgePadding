@@ -75,7 +75,13 @@ if(${BUILD_TEST})
 endif()
 
 set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
+
 install(TARGETS PyEdgePadding
     CONFIGURATIONS Release
-    RUNTIME DESTINATION edge_padding/lib
+    RUNTIME DESTINATION edge_padding/PyEdgePadding
+)
+
+install(TARGETS PyEdgePadding
+    CONFIGURATIONS Debug
+    RUNTIME DESTINATION edge_padding/PyEdgePadding
 )

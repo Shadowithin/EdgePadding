@@ -34,3 +34,5 @@ packages/
 build/
 bin/
 lib/
+**__pycache__/
+*.pyd
